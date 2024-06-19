@@ -39,30 +39,36 @@ func getEnvVar(key string) string {
 	return value
 }
 
-func capture() {
-	timestamp := time.Now().Format("2006-01-02T15-04-05")
-	fmt.Printf("Saving for timestamp %s\n", timestamp)
+func main() {
+	var err error
 
-	for _, host := range config.CaptureHosts {
-		hLog := logger.With(zap.Any("host", host))
-		filename := filepath.Join(config.CaptureDirectory, host.Server_Name, fmt.Sprintf("%s.jpg", timestamp))
-
-		// Download the image
-		if err := downloadImage(host.Server_Url, filename); err != nil {
-			hLog.Error("Failed to download image", zap.Error(err))
-		} else {
-			hLog.Info("Image saved", zap.String("filename", filename))
-		}
+	// Start logger
+	logger, err = zap.NewProduction()
+	if err != nil {
+		panic("Failed to initialize logger")
 	}
-}
+	defer logger.Sync() // flushes buffer, if any
+	logger.Info("Logger started")
 
-func startTimer() {
-	go func() {
-		ticker = time.NewTicker(time.Millisecond * time.Duration(config.IntervalMS))
-		for range ticker.C {
-			capture()
-		}
-	}()
+	// Load config
+	loadedConfig, err := loadConfig()
+	if err != nil {
+		logger.Fatal("Failed to load config file", zap.Error(err))
+	}
+	config = loadedConfig
+
+	// Create necessary directories
+	err = createDirectories()
+	if err != nil {
+		logger.Fatal("Failed to create directories", zap.Error(err))
+	}
+	logger.Info("Confirmed directories")
+
+	startTimer()
+	// Wait forever while timer runs
+	for {
+		time.Sleep(time.Minute)
+	}
 }
 
 func loadConfig() (*Config, error) {
@@ -103,35 +109,29 @@ func createDirectories() error {
 	return nil
 }
 
-func main() {
-	var err error
+func startTimer() {
+	go func() {
+		ticker = time.NewTicker(time.Millisecond * time.Duration(config.IntervalMS))
+		for range ticker.C {
+			capture()
+		}
+	}()
+}
 
-	// Start logger
-	logger, err = zap.NewProduction()
-	if err != nil {
-		panic("Failed to initialize logger")
-	}
-	defer logger.Sync() // flushes buffer, if any
-	logger.Info("Logger started")
+func capture() {
+	timestamp := time.Now().Format("2006-01-02T15-04-05")
+	fmt.Printf("Saving for timestamp %s\n", timestamp)
 
-	// Load config
-	loadedConfig, err := loadConfig()
-	if err != nil {
-		logger.Fatal("Failed to load config file", zap.Error(err))
-	}
-	config = loadedConfig
+	for _, host := range config.CaptureHosts {
+		hLog := logger.With(zap.Any("host", host))
+		filename := filepath.Join(config.CaptureDirectory, host.Server_Name, fmt.Sprintf("%s.jpg", timestamp))
 
-	// Create necessary directories
-	err = createDirectories()
-	if err != nil {
-		logger.Fatal("Failed to create directories", zap.Error(err))
-	}
-	logger.Info("Confirmed directories")
-
-	startTimer()
-	// Wait forever while timer runs
-	for {
-		time.Sleep(time.Minute)
+		// Download the image
+		if err := downloadImage(host.Server_Url, filename); err != nil {
+			hLog.Error("Failed to download image", zap.Error(err))
+		} else {
+			hLog.Info("Image saved", zap.String("filename", filename))
+		}
 	}
 }
 
