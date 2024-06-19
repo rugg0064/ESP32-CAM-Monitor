@@ -1,0 +1,14 @@
+{
+    "INTERVAL_MS": 5000,
+    "CAPTURE_DIRECTORY": "./captures",
+    "CAPTURE_HOSTS": [
+        {
+            "URL": "http://192.168.1.1/",
+            "NAME": "Server 1"
+        },
+        {
+            "URL": "http://192.168.1.2/",
+            "NAME": "Server 2"
+        },
+    ]
+}
